@@ -47,12 +47,18 @@ async function refreshAccessToken(): Promise<string> {
 }
 
 async function getAccessToken(): Promise<string> {
-  const { accessToken } = getAweberConfig();
+  const { accessToken, refreshToken, clientId, clientSecret } = getAweberConfig();
+
+  // Access tokens expire ~2h; prefer refresh when OAuth credentials are complete.
+  if (refreshToken && clientId && clientSecret) {
+    return refreshAccessToken();
+  }
+
   if (accessToken) {
     return accessToken;
   }
 
-  return refreshAccessToken();
+  throw new Error("AWeber OAuth refresh credentials are not configured");
 }
 
 function resolveNumericListId(listIdOrUnique: string): string {

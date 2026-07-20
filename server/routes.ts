@@ -5,6 +5,10 @@ import { subscribeEmail } from "./handlers/subscribe";
 import { getUsageForIp } from "./handlers/usage";
 
 export async function registerRoutes(app: Express): Promise<void> {
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true });
+  });
+
   app.get("/api/usage", async (req, res) => {
     try {
       const result = await getUsageForIp(getClientIp(req));

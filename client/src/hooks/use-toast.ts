@@ -10,6 +10,7 @@ type ToasterToast = {
   action?: React.ReactElement;
   variant?: "default" | "destructive";
   open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 const actionTypes = {
