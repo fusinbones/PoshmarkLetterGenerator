@@ -1,0 +1,110 @@
+Project Structure (Replit):
+pgsql
+Copy
+Edit
+/index.js         ← Main server file
+/public/
+  └── index.html  ← Frontend
+.env              ← Contains your OpenAI API key
+.replit           ← Replit config
+package.json      ← Project metadata and dependencies
+📄 index.js
+js
+Copy
+Edit
+const express = require("express");
+const { OpenAI } = require("openai");
+const path = require("path");
+require("dotenv").config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+app.post("/generate", async (req, res) => {
+  const { reason } = req.body;
+
+  const prompt =
+    reason === "suspension"
+      ? "Write a professional but polite letter appealing a Poshmark account suspension. The user has followed all new listing deletion rules, spaces out deletions, does not relist items under 61 days old, and only delists when items sell elsewhere."
+      : "Write a professional but friendly message to Poshmark support responding to a warning. The user complies with new listing deletion rules, doesn't relist anything under 61 days old, and avoids batch actions.";
+
+  try {
+    const chatCompletion = await openai.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "gpt-4",
+      temperature: 0.7,
+    });
+
+    res.json({ message: chatCompletion.choices[0].message.content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to generate message." });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+📁 /public/index.html
+html
+Copy
+Edit
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Poshmark Message Generator</title>
+</head>
+<body>
+  <h1>Poshmark Message Generator</h1>
+  <p>Select a reason and get your support message:</p>
+  <button onclick="generateMessage('suspension')">Suspension</button>
+  <button onclick="generateMessage('warning')">Warning</button>
+  <pre id="output" style="margin-top: 20px; white-space: pre-wrap;"></pre>
+
+  <script>
+    async function generateMessage(reason) {
+      const response = await fetch("/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason })
+      });
+      const data = await response.json();
+      document.getElementById("output").textContent = data.message || "Something went wrong.";
+    }
+  </script>
+</body>
+</html>
+📄 .env (Create in root)
+ini
+Copy
+Edit
+OPENAI_API_KEY=sk-proj-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+📄 .replit
+ini
+Copy
+Edit
+run = "node index.js"
+📄 package.json
+json
+Copy
+Edit
+{
+  "name": "poshmark-message-generator",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "openai": "^4.0.0"
+  }
+}

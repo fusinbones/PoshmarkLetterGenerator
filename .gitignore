@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.env.local
+.vercel
+.cache
+.replit
+.upm
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+project-export.zip
