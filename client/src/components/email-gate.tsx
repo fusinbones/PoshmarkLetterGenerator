@@ -77,8 +77,7 @@ export function EmailGate({ children }: EmailGateProps) {
             <Mail className="h-4 w-4 text-amber-700" />
             <AlertTitle className="text-amber-900">Confirm your subscription</AlertTitle>
             <AlertDescription className="text-amber-800 pr-8">
-              Check your email and click the confirmation link from AWeber to complete your
-              subscription and join the list.
+              Check your email and click the confirmation link to complete your subscription.
             </AlertDescription>
             <button
               type="button"
@@ -116,7 +115,7 @@ export function EmailGate({ children }: EmailGateProps) {
               </div>
 
               <p className="text-sm text-slate-700 mb-6">
-                Check your inbox for a confirmation email from AWeber. Click the link to confirm,
+                Check your inbox for a confirmation email. Click the link to confirm,
                 then return here. You can use the generator while you wait.
               </p>
 
