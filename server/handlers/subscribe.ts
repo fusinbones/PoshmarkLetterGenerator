@@ -9,7 +9,7 @@ export async function subscribeEmail(body: unknown) {
 
     return {
       status: 200 as const,
-      body: { success: true, email },
+      body: { success: true, email, requiresConfirmation: true },
     };
   } catch (error) {
     if (error instanceof ZodError) {

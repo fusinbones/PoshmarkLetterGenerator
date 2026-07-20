@@ -2,24 +2,23 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Mail, Loader2 } from "lucide-react";
+import { Mail, Loader2, Inbox, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { subscribeRequestSchema, type SubscribeRequest } from "@shared/models";
-
-const STORAGE_KEY = "subscribedEmail";
-
-function getStoredEmail(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
+import {
+  acknowledgeConfirmation,
+  dismissConfirmationBanner,
+  getStoredEmail,
+  isConfirmationAcknowledged,
+  savePendingSubscription,
+  shouldShowConfirmationBanner,
+} from "@/lib/subscription-storage";
 
 interface EmailGateProps {
   children: React.ReactNode;
@@ -28,6 +27,12 @@ interface EmailGateProps {
 export function EmailGate({ children }: EmailGateProps) {
   const { toast } = useToast();
   const [subscribedEmail, setSubscribedEmail] = useState<string | null>(() => getStoredEmail());
+  const [confirmationAcknowledged, setConfirmationAcknowledged] = useState(() =>
+    isConfirmationAcknowledged(),
+  );
+  const [showConfirmationBanner, setShowConfirmationBanner] = useState(() =>
+    shouldShowConfirmationBanner(),
+  );
 
   const form = useForm<SubscribeRequest>({
     resolver: zodResolver(subscribeRequestSchema),
@@ -37,15 +42,12 @@ export function EmailGate({ children }: EmailGateProps) {
   const subscribeMutation = useMutation({
     mutationFn: async (data: SubscribeRequest) => {
       const response = await apiRequest("POST", "/api/subscribe", data);
-      return response.json() as Promise<{ success: boolean; email: string }>;
+      return response.json() as Promise<{ success: boolean; email: string; requiresConfirmation?: boolean }>;
     },
     onSuccess: (data) => {
-      localStorage.setItem(STORAGE_KEY, data.email);
+      savePendingSubscription(data.email);
       setSubscribedEmail(data.email);
-      toast({
-        title: "You're all set!",
-        description: "The letter generator is now unlocked.",
-      });
+      setConfirmationAcknowledged(false);
     },
     onError: (error: Error) => {
       toast({
@@ -56,8 +58,84 @@ export function EmailGate({ children }: EmailGateProps) {
     },
   });
 
-  if (subscribedEmail) {
-    return <>{children}</>;
+  const handleContinueToGenerator = () => {
+    acknowledgeConfirmation();
+    setConfirmationAcknowledged(true);
+    setShowConfirmationBanner(shouldShowConfirmationBanner());
+  };
+
+  const handleDismissBanner = () => {
+    dismissConfirmationBanner();
+    setShowConfirmationBanner(false);
+  };
+
+  if (subscribedEmail && confirmationAcknowledged) {
+    return (
+      <>
+        {showConfirmationBanner && (
+          <Alert className="mb-6 border-amber-200 bg-amber-50 text-amber-900">
+            <Mail className="h-4 w-4 text-amber-700" />
+            <AlertTitle className="text-amber-900">Confirm your subscription</AlertTitle>
+            <AlertDescription className="text-amber-800 pr-8">
+              Check your email and click the confirmation link from AWeber to complete your
+              subscription and join the list.
+            </AlertDescription>
+            <button
+              type="button"
+              onClick={handleDismissBanner}
+              className="absolute right-3 top-3 rounded-md p-1 text-amber-700 hover:bg-amber-100"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </Alert>
+        )}
+        {children}
+      </>
+    );
+  }
+
+  if (subscribedEmail && !confirmationAcknowledged) {
+    return (
+      <div className="relative">
+        <div className="pointer-events-none select-none blur-sm opacity-40" aria-hidden="true">
+          {children}
+        </div>
+
+        <div className="absolute inset-0 z-10 flex items-start justify-center pt-12 px-4">
+          <Card className="w-full max-w-md shadow-xl border-slate-200">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-brand-blue rounded-lg flex items-center justify-center">
+                  <Inbox className="text-white w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Almost done!</h3>
+                  <p className="text-sm text-slate-600">One more step to join the list</p>
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-700 mb-6">
+                Check your inbox for a confirmation email from AWeber. Click the link to confirm,
+                then return here. You can use the generator while you wait.
+              </p>
+
+              <Button
+                type="button"
+                onClick={handleContinueToGenerator}
+                className="w-full bg-brand-blue hover:bg-blue-700"
+              >
+                Continue to Generator
+              </Button>
+
+              <p className="text-xs text-slate-500 mt-4 text-center">
+                Didn&apos;t get the email? Check your spam folder.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -122,7 +200,7 @@ export function EmailGate({ children }: EmailGateProps) {
             </Form>
 
             <p className="text-xs text-slate-500 mt-4 text-center">
-              We'll send you helpful tips. Unsubscribe anytime.
+              We&apos;ll send you helpful tips. Unsubscribe anytime.
             </p>
           </CardContent>
         </Card>

@@ -173,7 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { email } = subscribeRequestSchema.parse(parseBody(req));
     await addSubscriberToAweber(email);
-    return res.status(200).json({ success: true, email });
+    return res.status(200).json({ success: true, email, requiresConfirmation: true });
   } catch (error) {
     if (error instanceof ZodError) {
       return res.status(400).json({
