@@ -1,8 +1,9 @@
-import { storage } from "../storage";
+import { getStorage } from "../storage";
 
 const DAILY_LIMIT = 20;
 
 export async function getUsageForIp(ipAddress: string) {
+  const storage = await getStorage();
   const today = new Date().toDateString();
 
   let usage = await storage.getUsageByIp(ipAddress);
@@ -27,6 +28,7 @@ export async function getUsageForIp(ipAddress: string) {
 }
 
 export async function ensureUsageForIp(ipAddress: string) {
+  const storage = await getStorage();
   const today = new Date().toDateString();
   let usage = await storage.getUsageByIp(ipAddress);
 

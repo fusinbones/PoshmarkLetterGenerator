@@ -5,8 +5,7 @@ import type {
   UsageTracking,
   User,
 } from "../shared/models";
-import { isSupabaseConfigured } from "./supabase";
-import { SupabaseStorage } from "./supabaseStorage";
+import { isSupabaseConfigured } from "./supabaseConfig";
 import type { IStorage } from "./storage.types";
 
 export type { IStorage } from "./storage.types";
@@ -76,14 +75,39 @@ export class MemStorage implements IStorage {
   }
 }
 
-function createStorage(): IStorage {
+let storagePromise: Promise<IStorage> | undefined;
+
+async function initStorage(): Promise<IStorage> {
   if (isSupabaseConfigured()) {
     console.log("Using Supabase storage");
+    const { SupabaseStorage } = await import("./supabaseStorage");
     return new SupabaseStorage();
   }
 
-  console.log("Using in-memory storage (set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY for persistence)");
+  console.log(
+    "Using in-memory storage (set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY for persistence)",
+  );
   return new MemStorage();
 }
 
-export const storage = createStorage();
+export async function getStorage(): Promise<IStorage> {
+  storagePromise ??= initStorage();
+  return storagePromise;
+}
+
+// Local Express dev still expects synchronous access after startup.
+let storageInstance: IStorage | undefined;
+
+export async function ensureStorageReady(): Promise<IStorage> {
+  storageInstance ??= await getStorage();
+  return storageInstance;
+}
+
+export const storage: IStorage = new Proxy({} as IStorage, {
+  get(_target, prop, receiver) {
+    if (!storageInstance) {
+      throw new Error("Storage accessed before initialization. Call ensureStorageReady() first.");
+    }
+    return Reflect.get(storageInstance, prop, receiver);
+  },
+});

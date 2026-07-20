@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { generateRequestSchema } from "../../shared/models";
 import { DAILY_LIMIT, ensureUsageForIp } from "./usage";
-import { storage } from "../storage";
+import { getStorage } from "../storage";
 
 const openaiApiKey =
   process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR;
@@ -60,6 +60,7 @@ export async function generateForIp(ipAddress: string, body: unknown) {
   }
 
   const newUsageCount = (usage?.usageCount || 0) + 1;
+  const storage = await getStorage();
   await storage.updateUsage(ipAddress, newUsageCount, today);
 
   return {

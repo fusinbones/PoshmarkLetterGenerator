@@ -38,12 +38,14 @@ function mapUserRow(row: UserRow): User {
 }
 
 export class SupabaseStorage implements IStorage {
-  private get client() {
-    return getSupabaseAdmin();
+  private clientPromise = getSupabaseAdmin();
+
+  private async client() {
+    return this.clientPromise;
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    const { data, error } = await this.client
+    const { data, error } = await (await this.client())
       .from("users")
       .select("*")
       .eq("id", id)
@@ -57,7 +59,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const { data, error } = await this.client
+    const { data, error } = await (await this.client())
       .from("users")
       .select("*")
       .eq("username", username)
@@ -71,7 +73,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const { data, error } = await this.client
+    const { data, error } = await (await this.client())
       .from("users")
       .insert(insertUser)
       .select("*")
@@ -85,7 +87,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getUsageByIp(ipAddress: string): Promise<UsageTracking | undefined> {
-    const { data, error } = await this.client
+    const { data, error } = await (await this.client())
       .from("usage_tracking")
       .select("*")
       .eq("ip_address", ipAddress)
@@ -99,7 +101,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createUsage(insertUsage: InsertUsageTracking): Promise<UsageTracking> {
-    const { data, error } = await this.client
+    const { data, error } = await (await this.client())
       .from("usage_tracking")
       .insert({
         ip_address: insertUsage.ipAddress,
@@ -121,7 +123,7 @@ export class SupabaseStorage implements IStorage {
     usageCount: number,
     lastResetDate: string,
   ): Promise<UsageTracking | undefined> {
-    const { data, error } = await this.client
+    const { data, error } = await (await this.client())
       .from("usage_tracking")
       .update({
         usage_count: usageCount,

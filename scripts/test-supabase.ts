@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
+import { isSupabaseConfigured } from "../server/supabaseConfig";
 
 async function main() {
   const url = process.env.SUPABASE_URL;
