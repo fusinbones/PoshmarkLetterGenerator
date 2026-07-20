@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { generateRequestSchema } from "@shared/models";
-import { Ban, AlertTriangle, Copy, Wand2, Shield, Clock, Loader2, User, FileText } from "lucide-react";
+import { generateRequestSchema, type GenerateRequest } from "@shared/models";
+import { Ban, AlertTriangle, Copy, Wand2, Shield, Clock, Loader2, User, FileText, Store } from "lucide-react";
+
+type GenerateReason = GenerateRequest["reason"];
 
 interface UsageData {
   usageCount: number;
@@ -33,7 +35,7 @@ export default function Home() {
   const form = useForm({
     resolver: zodResolver(generateRequestSchema),
     defaultValues: {
-      reason: "suspension" as "suspension" | "warning",
+      reason: "suspension" as GenerateReason,
       fullName: "",
       closetName: "",
     },
@@ -45,7 +47,7 @@ export default function Home() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: async (data: { reason: "suspension" | "warning"; fullName?: string; closetName?: string }) => {
+    mutationFn: async (data: { reason: GenerateReason; fullName?: string; closetName?: string }) => {
       const response = await apiRequest("POST", "/api/generate", data);
       return response.json() as Promise<GenerateResponse>;
     },
@@ -66,7 +68,7 @@ export default function Home() {
     },
   });
 
-  const handleGenerate = (reason: "suspension" | "warning") => {
+  const handleGenerate = (reason: GenerateReason) => {
     if (usageData && usageData.usageCount >= usageData.dailyLimit) {
       toast({
         title: "Daily Limit Reached",
@@ -207,7 +209,7 @@ export default function Home() {
             </Form>
 
             {/* Action Buttons */}
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
               <Button
                 onClick={() => handleGenerate("suspension")}
                 disabled={limitReached || generateMutation.isPending}
@@ -218,6 +220,20 @@ export default function Home() {
                   <div className="text-left">
                     <div className="text-lg font-bold">Account Suspension</div>
                     <div className="text-red-100 text-sm">Appeal suspended account</div>
+                  </div>
+                </div>
+              </Button>
+
+              <Button
+                onClick={() => handleGenerate("suspension_sold_elsewhere")}
+                disabled={limitReached || generateMutation.isPending}
+                className="group relative bg-brand-error hover:bg-red-700 text-white font-semibold py-8 px-6 h-auto transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                <div className="flex items-center justify-center space-x-3">
+                  <Store className="text-xl shrink-0" />
+                  <div className="text-left">
+                    <div className="text-lg font-bold leading-tight">Account Suspension</div>
+                    <div className="text-red-100 text-sm">Sold items on another platform</div>
                   </div>
                 </div>
               </Button>

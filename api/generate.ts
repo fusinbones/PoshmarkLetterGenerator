@@ -4,7 +4,7 @@ import { z } from "zod";
 const DAILY_LIMIT = 20;
 
 const generateRequestSchema = z.object({
-  reason: z.enum(["suspension", "warning"]),
+  reason: z.enum(["suspension", "suspension_sold_elsewhere", "warning"]),
   fullName: z.string().optional(),
   closetName: z.string().optional(),
 });
@@ -187,10 +187,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       usageCount = usage.usage_count;
     }
 
-    let prompt =
-      body.reason === "suspension"
-        ? "Write a professional email response to a Poshmark account suspension notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's suspension email. The user has followed all new listing deletion rules, spaces out deletions, does not relist items under 61 days old, and only delists when items sell elsewhere. Make it respectful, concise, and focused on compliance with Poshmark policies."
-        : "Write a professional email response to a Poshmark policy warning notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's warning email. The user complies with new listing deletion rules, doesn't relist anything under 61 days old, and avoids batch actions. Make it courteous, acknowledging their concern while explaining compliance efforts.";
+    let prompt: string;
+    if (body.reason === "suspension") {
+      prompt =
+        "Write a professional email response to a Poshmark account suspension notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's suspension email. The user has followed all new listing deletion rules, spaces out deletions, does not relist items under 61 days old, and only delists when items sell elsewhere. Make it respectful, concise, and focused on compliance with Poshmark policies.";
+    } else if (body.reason === "suspension_sold_elsewhere") {
+      prompt =
+        "Write a professional email response to a Poshmark account suspension notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's suspension email. Explain that Poshmark's system detected listing deletions because the user is de-listing items that sold on another platform to avoid double-selling and causing problems on Poshmark—not because of intentional policy violations. The user de-lists responsibly when items sell elsewhere, spaces out deletions, does not relist items under 61 days old, and is committed to compliance. Make it respectful, concise, and focused on explaining the legitimate reason for the deletions.";
+    } else {
+      prompt =
+        "Write a professional email response to a Poshmark policy warning notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's warning email. The user complies with new listing deletion rules, doesn't relist anything under 61 days old, and avoids batch actions. Make it courteous, acknowledging their concern while explaining compliance efforts.";
+    }
 
     if (body.fullName?.trim()) {
       prompt += ` The user's full name is "${body.fullName}".`;

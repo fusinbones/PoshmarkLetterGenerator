@@ -25,7 +25,7 @@ export type InsertUser = {
 };
 
 export const generateRequestSchema = z.object({
-  reason: z.enum(["suspension", "warning"]),
+  reason: z.enum(["suspension", "suspension_sold_elsewhere", "warning"]),
   fullName: z.string().optional(),
   closetName: z.string().optional(),
 });
