@@ -1,4 +1,3 @@
-import "dotenv/config";
 import type {
   InsertUsageTracking,
   InsertUser,
@@ -9,6 +8,79 @@ import { isSupabaseConfigured } from "./supabaseConfig";
 import type { IStorage } from "./storage.types";
 
 export type { IStorage } from "./storage.types";
+
+class ResilientStorage implements IStorage {
+  private readonly fallback = new MemStorage();
+  private useFallback = false;
+
+  constructor(private readonly primary: IStorage) {}
+
+  private async run<T>(
+    primaryOp: (storage: IStorage) => Promise<T>,
+    fallbackOp: (storage: MemStorage) => Promise<T>,
+  ): Promise<T> {
+    if (this.useFallback) {
+      return fallbackOp(this.fallback);
+    }
+
+    try {
+      return await primaryOp(this.primary);
+    } catch (error) {
+      console.warn(
+        "Primary storage failed, falling back to in-memory storage:",
+        error,
+      );
+      this.useFallback = true;
+      return fallbackOp(this.fallback);
+    }
+  }
+
+  getUser(id: number): Promise<User | undefined> {
+    return this.run(
+      (storage) => storage.getUser(id),
+      (storage) => storage.getUser(id),
+    );
+  }
+
+  getUserByUsername(username: string): Promise<User | undefined> {
+    return this.run(
+      (storage) => storage.getUserByUsername(username),
+      (storage) => storage.getUserByUsername(username),
+    );
+  }
+
+  createUser(insertUser: InsertUser): Promise<User> {
+    return this.run(
+      (storage) => storage.createUser(insertUser),
+      (storage) => storage.createUser(insertUser),
+    );
+  }
+
+  getUsageByIp(ipAddress: string): Promise<UsageTracking | undefined> {
+    return this.run(
+      (storage) => storage.getUsageByIp(ipAddress),
+      (storage) => storage.getUsageByIp(ipAddress),
+    );
+  }
+
+  createUsage(insertUsage: InsertUsageTracking): Promise<UsageTracking> {
+    return this.run(
+      (storage) => storage.createUsage(insertUsage),
+      (storage) => storage.createUsage(insertUsage),
+    );
+  }
+
+  updateUsage(
+    ipAddress: string,
+    usageCount: number,
+    lastResetDate: string,
+  ): Promise<UsageTracking | undefined> {
+    return this.run(
+      (storage) => storage.updateUsage(ipAddress, usageCount, lastResetDate),
+      (storage) => storage.updateUsage(ipAddress, usageCount, lastResetDate),
+    );
+  }
+}
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
@@ -78,16 +150,24 @@ export class MemStorage implements IStorage {
 let storagePromise: Promise<IStorage> | undefined;
 
 async function initStorage(): Promise<IStorage> {
-  if (isSupabaseConfigured()) {
-    console.log("Using Supabase storage");
-    const { SupabaseStorage } = await import("./supabaseStorage");
-    return new SupabaseStorage();
+  if (!isSupabaseConfigured()) {
+    console.log(
+      "Using in-memory storage (set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY for persistence)",
+    );
+    return new MemStorage();
   }
 
-  console.log(
-    "Using in-memory storage (set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY for persistence)",
-  );
-  return new MemStorage();
+  try {
+    console.log("Using Supabase storage with in-memory fallback");
+    const { SupabaseStorage } = await import("./supabaseStorage");
+    return new ResilientStorage(new SupabaseStorage());
+  } catch (error) {
+    console.warn(
+      "Failed to initialize Supabase storage, using in-memory storage:",
+      error,
+    );
+    return new MemStorage();
+  }
 }
 
 export async function getStorage(): Promise<IStorage> {

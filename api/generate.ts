@@ -33,6 +33,25 @@ type UsageRow = {
   last_reset_date: string;
 };
 
+const memoryUsage = new Map<string, UsageRow>();
+
+function getMemoryUsage(ipAddress: string, today: string): UsageRow {
+  const existing = memoryUsage.get(ipAddress);
+  if (!existing || existing.last_reset_date !== today) {
+    const fresh = { usage_count: 0, last_reset_date: today };
+    memoryUsage.set(ipAddress, fresh);
+    return fresh;
+  }
+  return existing;
+}
+
+function incrementMemoryUsage(ipAddress: string, today: string): number {
+  const usage = getMemoryUsage(ipAddress, today);
+  usage.usage_count += 1;
+  memoryUsage.set(ipAddress, usage);
+  return usage.usage_count;
+}
+
 async function getOrCreateUsage(
   supabase: Awaited<ReturnType<(typeof import("@supabase/supabase-js"))["createClient"]>>,
   ipAddress: string,
@@ -84,13 +103,26 @@ async function getOrCreateUsage(
   return data as UsageRow;
 }
 
+function parseBody(req: VercelRequest): unknown {
+  if (req.body == null || req.body === "") {
+    return {};
+  }
+
+  if (typeof req.body === "string") {
+    return JSON.parse(req.body);
+  }
+
+  return req.body;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method not allowed" });
   }
 
-  const openaiApiKey =
-    process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR;
+  const openaiApiKey = (
+    process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR
+  )?.trim();
 
   if (!openaiApiKey) {
     return res
@@ -99,23 +131,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const body = generateRequestSchema.parse(req.body);
+    const body = generateRequestSchema.parse(parseBody(req));
     const today = new Date().toDateString();
     const ipAddress = getClientIp(req);
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL?.trim();
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
     let usageCount = 0;
+    let useMemoryUsage = !(supabaseUrl && supabaseKey);
 
     if (supabaseUrl && supabaseKey) {
-      const { createClient } = await import("@supabase/supabase-js");
-      const supabase = createClient(supabaseUrl, supabaseKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
+      try {
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
 
-      const usage = await getOrCreateUsage(supabase, ipAddress, today);
+        const usage = await getOrCreateUsage(supabase, ipAddress, today);
 
+        if (usage.usage_count >= DAILY_LIMIT) {
+          return res.status(429).json({
+            message: "Daily usage limit reached. Please try again tomorrow.",
+            usageCount: usage.usage_count,
+            dailyLimit: DAILY_LIMIT,
+          });
+        }
+
+        usageCount = usage.usage_count;
+      } catch (storageError) {
+        console.warn(
+          "Supabase usage lookup failed, using in-memory fallback:",
+          storageError,
+        );
+        useMemoryUsage = true;
+        const usage = getMemoryUsage(ipAddress, today);
+        if (usage.usage_count >= DAILY_LIMIT) {
+          return res.status(429).json({
+            message: "Daily usage limit reached. Please try again tomorrow.",
+            usageCount: usage.usage_count,
+            dailyLimit: DAILY_LIMIT,
+          });
+        }
+        usageCount = usage.usage_count;
+      }
+    } else {
+      const usage = getMemoryUsage(ipAddress, today);
       if (usage.usage_count >= DAILY_LIMIT) {
         return res.status(429).json({
           message: "Daily usage limit reached. Please try again tomorrow.",
@@ -123,7 +184,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           dailyLimit: DAILY_LIMIT,
         });
       }
-
       usageCount = usage.usage_count;
     }
 
@@ -159,21 +219,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw new Error("No message generated from OpenAI");
     }
 
-    const newUsageCount = usageCount + 1;
+    let newUsageCount = usageCount + 1;
 
-    if (supabaseUrl && supabaseKey) {
-      const { createClient } = await import("@supabase/supabase-js");
-      const supabase = createClient(supabaseUrl, supabaseKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
+    if (useMemoryUsage) {
+      newUsageCount = incrementMemoryUsage(ipAddress, today);
+    } else if (supabaseUrl && supabaseKey) {
+      try {
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
 
-      const { error: updateError } = await supabase
-        .from("usage_tracking")
-        .update({ usage_count: newUsageCount, last_reset_date: today })
-        .eq("ip_address", ipAddress);
+        const { error: updateError } = await supabase
+          .from("usage_tracking")
+          .update({ usage_count: newUsageCount, last_reset_date: today })
+          .eq("ip_address", ipAddress);
 
-      if (updateError) {
-        throw updateError;
+        if (updateError) {
+          throw updateError;
+        }
+      } catch (storageError) {
+        console.warn(
+          "Supabase usage update failed, using in-memory fallback:",
+          storageError,
+        );
+        newUsageCount = incrementMemoryUsage(ipAddress, today);
       }
     }
 
