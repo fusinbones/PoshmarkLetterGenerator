@@ -33,13 +33,13 @@ export async function generateForIp(ipAddress: string, body: unknown) {
   let prompt: string;
   if (parsed.reason === "suspension") {
     prompt =
-      "Write a professional email response to a Poshmark account suspension notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's suspension email. The user has followed all new listing deletion rules, spaces out deletions, does not relist items under 61 days old, and only delists when items sell elsewhere. Make it respectful, concise, and focused on compliance with Poshmark policies.";
+      "Write a professional email response to a Poshmark account suspension notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's suspension email. The user has removed sold items in the best way they know how and did not intentionally violate Poshmark policies. They are committed to compliance and want to resolve this respectfully. Make it respectful, concise, and focused on good-faith compliance with Poshmark policies.";
   } else if (parsed.reason === "suspension_sold_elsewhere") {
     prompt =
-      "Write a professional email response to a Poshmark account suspension notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's suspension email. Explain that Poshmark's system detected listing deletions because the user is de-listing items that sold on another platform to avoid double-selling and causing problems on Poshmark—not because of intentional policy violations. The user de-lists responsibly when items sell elsewhere, spaces out deletions, does not relist items under 61 days old, and is committed to compliance. Make it respectful, concise, and focused on explaining the legitimate reason for the deletions.";
+      "Write a professional email response to a Poshmark account suspension notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's suspension email. Explain that Poshmark's system may have detected listing deletions because the user delists items that sold on another platform to avoid double-selling—not because of intentional policy violations. The user is committed to compliance and wants to resolve this respectfully. Make it respectful, concise, and focused on explaining the legitimate reason for the deletions.";
   } else {
     prompt =
-      "Write a professional email response to a Poshmark policy warning notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's warning email. The user complies with new listing deletion rules, doesn't relist anything under 61 days old, and avoids batch actions. Make it courteous, acknowledging their concern while explaining compliance efforts.";
+      "Write a professional email response to a Poshmark policy warning notification. This should be a direct email reply that can be copy-pasted as a response to Poshmark's warning email. The user has removed sold items in the best way they know how, did not intentionally cause issues, and is committed to complying with Poshmark policies. Make it courteous, acknowledging their concern while explaining their good-faith compliance efforts.";
   }
 
   if (parsed.fullName?.trim()) {
