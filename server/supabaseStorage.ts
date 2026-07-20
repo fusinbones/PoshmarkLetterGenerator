@@ -3,7 +3,7 @@ import type {
   InsertUser,
   UsageTracking,
   User,
-} from "../shared/schema";
+} from "../shared/models";
 import { getSupabaseAdmin } from "./supabase";
 import type { IStorage } from "./storage.types";
 

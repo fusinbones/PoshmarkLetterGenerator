@@ -4,7 +4,7 @@ import type {
   InsertUser,
   UsageTracking,
   User,
-} from "../shared/schema";
+} from "../shared/models";
 import { isSupabaseConfigured } from "./supabase";
 import { SupabaseStorage } from "./supabaseStorage";
 import type { IStorage } from "./storage.types";

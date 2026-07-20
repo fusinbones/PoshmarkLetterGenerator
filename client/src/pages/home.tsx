@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { generateRequestSchema } from "@shared/schema";
+import { generateRequestSchema } from "@shared/models";
 import { Ban, AlertTriangle, Copy, Wand2, Shield, Clock, Loader2, User, FileText } from "lucide-react";
 
 interface UsageData {

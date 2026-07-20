@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { generateRequestSchema } from "../../shared/schema";
+import { generateRequestSchema } from "../../shared/models";
 import { DAILY_LIMIT, ensureUsageForIp } from "./usage";
 import { storage } from "../storage";
 
