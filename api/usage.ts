@@ -1,7 +1,27 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getMemoryUsage } from "./usageStore";
 
 const DAILY_LIMIT = 20;
+
+type UsageEntry = {
+  usageCount: number;
+  lastResetDate: string;
+};
+
+type UsageRow = {
+  usage_count: number;
+  last_reset_date: string;
+};
+
+const memoryStore = new Map<string, UsageEntry>();
+
+function getMemoryUsage(ipAddress: string, today: string): UsageEntry {
+  let entry = memoryStore.get(ipAddress);
+  if (!entry || entry.lastResetDate !== today) {
+    entry = { usageCount: 0, lastResetDate: today };
+    memoryStore.set(ipAddress, entry);
+  }
+  return entry;
+}
 
 function getClientIp(req: VercelRequest): string {
   const forwarded = req.headers["x-forwarded-for"];
@@ -22,26 +42,12 @@ function getClientIp(req: VercelRequest): string {
   return "unknown";
 }
 
-type UsageRow = {
-  usage_count: number;
-  last_reset_date: string;
-};
-
-function memoryResponse(ipAddress: string, today: string) {
-  const usage = getMemoryUsage(ipAddress, today);
-  return {
-    usageCount: usage.usageCount,
-    dailyLimit: DAILY_LIMIT,
-    resetDate: usage.lastResetDate,
-  };
-}
-
 async function fetchSupabaseUsage(
   ipAddress: string,
   today: string,
 ): Promise<{ usageCount: number; dailyLimit: number; resetDate: string } | null> {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
   if (!supabaseUrl || !supabaseKey) {
     return null;
@@ -122,5 +128,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.warn("Supabase usage lookup failed, using in-memory fallback:", error);
   }
 
-  return res.status(200).json(memoryResponse(ipAddress, today));
+  const memoryUsage = getMemoryUsage(ipAddress, today);
+  return res.status(200).json({
+    usageCount: memoryUsage.usageCount,
+    dailyLimit: DAILY_LIMIT,
+    resetDate: memoryUsage.lastResetDate,
+  });
 }
