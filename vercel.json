@@ -4,11 +4,7 @@
   "outputDirectory": "dist/public",
   "functions": {
     "api/generate.ts": {
-      "maxDuration": 10,
-      "includeFiles": "{server,shared}/**"
-    },
-    "api/usage.ts": {
-      "includeFiles": "{server,shared}/**"
+      "maxDuration": 10
     }
   }
 }
