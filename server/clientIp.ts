@@ -1,6 +1,12 @@
-import type { Request } from "express";
+import type { IncomingMessage } from "http";
 
-export function getClientIp(req: Request): string {
+type RequestLike = {
+  headers: IncomingMessage["headers"];
+  socket?: { remoteAddress?: string | null };
+  ip?: string;
+};
+
+export function getClientIp(req: RequestLike): string {
   const forwarded = req.headers["x-forwarded-for"];
 
   if (typeof forwarded === "string" && forwarded.length > 0) {
@@ -16,5 +22,9 @@ export function getClientIp(req: Request): string {
     return realIp;
   }
 
-  return req.ip || req.socket.remoteAddress || "unknown";
+  if (req.ip) {
+    return req.ip;
+  }
+
+  return req.socket?.remoteAddress || "unknown";
 }
