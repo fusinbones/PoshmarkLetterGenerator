@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { generateRequestSchema, type GenerateRequest } from "@shared/models";
 import { Ban, AlertTriangle, Copy, Wand2, Shield, Clock, Loader2, User, FileText, Store } from "lucide-react";
+import { EmailGate } from "@/components/email-gate";
 
 type GenerateReason = GenerateRequest["reason"];
 
@@ -147,6 +148,7 @@ export default function Home() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
+        <EmailGate>
         {/* Generator Card */}
         <Card className="overflow-hidden">
           <div className="p-6 border-b border-slate-200">
@@ -347,6 +349,7 @@ export default function Home() {
             <p className="text-slate-600 text-sm">Generate professional appeal letters in seconds, saving you time and effort.</p>
           </Card>
         </div>
+        </EmailGate>
       </main>
     </div>
   );

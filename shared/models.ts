@@ -31,3 +31,9 @@ export const generateRequestSchema = z.object({
 });
 
 export type GenerateRequest = z.infer<typeof generateRequestSchema>;
+
+export const subscribeRequestSchema = z.object({
+  email: z.string().trim().email("Please enter a valid email address"),
+});
+
+export type SubscribeRequest = z.infer<typeof subscribeRequestSchema>;
