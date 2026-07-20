@@ -1,4 +1,3 @@
-import "dotenv/config";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getClientIp } from "../server/clientIp";
 import { getUsageForIp } from "../server/handlers/usage";

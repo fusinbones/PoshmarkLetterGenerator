@@ -5,10 +5,10 @@
   "functions": {
     "api/generate.ts": {
       "maxDuration": 10,
-      "includeFiles": "server/**"
+      "includeFiles": "{server,shared}/**"
     },
     "api/usage.ts": {
-      "includeFiles": "server/**"
+      "includeFiles": "{server,shared}/**"
     }
   }
 }
