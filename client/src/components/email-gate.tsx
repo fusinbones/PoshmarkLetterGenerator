@@ -16,6 +16,7 @@ import {
   dismissConfirmationBanner,
   getStoredEmail,
   isConfirmationAcknowledged,
+  markEmailConfirmed,
   savePendingSubscription,
   shouldShowConfirmationBanner,
 } from "@/lib/subscription-storage";
@@ -69,15 +70,31 @@ export function EmailGate({ children }: EmailGateProps) {
     setShowConfirmationBanner(false);
   };
 
+  const handleConfirmEmail = () => {
+    markEmailConfirmed();
+    setShowConfirmationBanner(false);
+  };
+
   if (subscribedEmail && confirmationAcknowledged) {
     return (
       <>
         {showConfirmationBanner && (
-          <Alert className="mb-6 border-amber-200 bg-amber-50 text-amber-900">
+          <Alert className="relative mb-6 border-amber-200 bg-amber-50 text-amber-900">
             <Mail className="h-4 w-4 text-amber-700" />
             <AlertTitle className="text-amber-900">Confirm your subscription</AlertTitle>
             <AlertDescription className="text-amber-800 pr-8">
-              Check your email and click the confirmation link to complete your subscription.
+              <p className="mb-3">
+                Check your email and click the confirmation link to complete your subscription.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleConfirmEmail}
+                className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+              >
+                I&apos;ve confirmed my email
+              </Button>
             </AlertDescription>
             <button
               type="button"
