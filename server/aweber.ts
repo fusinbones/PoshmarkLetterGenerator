@@ -1,60 +1,99 @@
 const AWEBER_API_BASE = "https://api.aweber.com/1.0";
-
-const listIdCache = new Map<string, string>();
+const AWEBER_TOKEN_URL = "https://auth.aweber.com/oauth2/token";
 
 function getAweberConfig() {
   return {
     accessToken: process.env.AWEBER_ACCESS_TOKEN?.trim(),
+    refreshToken: process.env.AWEBER_REFRESH_TOKEN?.trim(),
+    clientId: process.env.AWEBER_CLIENT_ID?.trim(),
+    clientSecret: process.env.AWEBER_CLIENT_SECRET?.trim(),
     accountId: process.env.AWEBER_ACCOUNT_ID?.trim(),
     listId: process.env.AWEBER_LIST_ID?.trim() || "awlist6966993",
     devBypass: process.env.AWEBER_DEV_BYPASS === "true",
   };
 }
 
-async function resolveNumericListId(
-  accessToken: string,
-  accountId: string,
-  listIdOrUnique: string,
-): Promise<string> {
+async function refreshAccessToken(): Promise<string> {
+  const { refreshToken, clientId, clientSecret } = getAweberConfig();
+
+  if (!refreshToken || !clientId || !clientSecret) {
+    throw new Error("AWeber OAuth refresh credentials are not configured");
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: clientId,
+    client_secret: clientSecret,
+  });
+
+  const response = await fetch(AWEBER_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    throw new Error(`AWeber token refresh failed (${response.status}): ${errorText}`);
+  }
+
+  const data = (await response.json()) as { access_token?: string };
+  if (!data.access_token) {
+    throw new Error("AWeber token refresh returned no access token");
+  }
+
+  return data.access_token;
+}
+
+async function getAccessToken(): Promise<string> {
+  const { accessToken } = getAweberConfig();
+  if (accessToken) {
+    return accessToken;
+  }
+
+  return refreshAccessToken();
+}
+
+function resolveNumericListId(listIdOrUnique: string): string {
   if (/^\d+$/.test(listIdOrUnique)) {
     return listIdOrUnique;
   }
 
-  const cacheKey = `${accountId}:${listIdOrUnique}`;
-  const cached = listIdCache.get(cacheKey);
-  if (cached) {
-    return cached;
+  const awlistMatch = listIdOrUnique.match(/^awlist(\d+)$/i);
+  if (awlistMatch) {
+    return awlistMatch[1];
   }
 
-  const response = await fetch(`${AWEBER_API_BASE}/accounts/${accountId}/lists`, {
+  throw new Error(`Invalid AWeber list ID format: ${listIdOrUnique}`);
+}
+
+async function aweberFetch(
+  url: string,
+  init: RequestInit,
+  accessToken: string,
+  retryOnUnauthorized = true,
+): Promise<Response> {
+  const response = await fetch(url, {
+    ...init,
     headers: {
+      ...init.headers,
       Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
     },
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch AWeber lists (${response.status})`);
+  if (response.status === 401 && retryOnUnauthorized) {
+    const newToken = await refreshAccessToken();
+    return aweberFetch(url, init, newToken, false);
   }
 
-  const data = (await response.json()) as {
-    entries?: Array<{ id: number; unique_list_id?: string }>;
-  };
-
-  const list = data.entries?.find((entry) => entry.unique_list_id === listIdOrUnique);
-  if (!list) {
-    throw new Error(`AWeber list not found: ${listIdOrUnique}`);
-  }
-
-  const numericId = String(list.id);
-  listIdCache.set(cacheKey, numericId);
-  return numericId;
+  return response;
 }
 
 export async function addSubscriberToAweber(email: string): Promise<void> {
-  const { accessToken, accountId, listId, devBypass } = getAweberConfig();
+  const { accountId, listId, devBypass } = getAweberConfig();
 
-  if (!accessToken || !accountId) {
+  if (!accountId) {
     if (devBypass) {
       console.warn("[AWeber] DEV BYPASS enabled — skipping subscribe for:", email);
       return;
@@ -62,14 +101,24 @@ export async function addSubscriberToAweber(email: string): Promise<void> {
     throw new Error("AWeber credentials are not configured");
   }
 
-  const numericListId = await resolveNumericListId(accessToken, accountId, listId);
+  let accessToken: string;
+  try {
+    accessToken = await getAccessToken();
+  } catch (error) {
+    if (devBypass) {
+      console.warn("[AWeber] DEV BYPASS enabled — skipping subscribe for:", email);
+      return;
+    }
+    throw error;
+  }
 
-  const response = await fetch(
+  const numericListId = resolveNumericListId(listId);
+
+  const response = await aweberFetch(
     `${AWEBER_API_BASE}/accounts/${accountId}/lists/${numericListId}/subscribers`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
@@ -78,6 +127,7 @@ export async function addSubscriberToAweber(email: string): Promise<void> {
         update_existing: "true",
       }),
     },
+    accessToken,
   );
 
   if (response.ok || response.status === 201) {
