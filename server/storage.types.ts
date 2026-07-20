@@ -3,7 +3,7 @@ import type {
   InsertUser,
   UsageTracking,
   User,
-} from "@shared/schema";
+} from "../shared/schema";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;

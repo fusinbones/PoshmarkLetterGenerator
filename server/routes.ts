@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { getClientIp } from "./clientIp";
 import { storage } from "./storage";
-import { generateRequestSchema } from "@shared/schema";
+import { generateRequestSchema } from "../shared/schema";
 import OpenAI from "openai";
 
 const openaiApiKey =
